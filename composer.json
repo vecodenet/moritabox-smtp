@@ -1,7 +1,6 @@
 {
   "require": {
-    "react/socket": "^1.13",
-    "vecode/caldera-http": "^1.2"
+    "react/socket": "^1.13"
   },
   "autoload": {
     "psr-4": {
