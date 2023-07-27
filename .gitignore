@@ -1,0 +1,11 @@
+# Composer related
+composer.phar
+composer.lock
+# Thumbnails and caches
+.DS_Store
+Thumbs.db
+# Editor related
+/.idea
+/.vscode
+# PHPUnit related
+.phpunit.result.cache

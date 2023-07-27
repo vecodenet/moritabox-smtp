@@ -1,0 +1,21 @@
+{
+  "require": {
+    "react/socket": "^1.13",
+    "vecode/caldera-http": "^1.2"
+  },
+  "autoload": {
+    "psr-4": {
+      "MoritaBox\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "MoritaBox\\Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "analyse": "phpstan analyse --configuration phpstan.neon --memory-limit 1G --level 7 src",
+    "coverage": "phpunit --coverage-text",
+    "test": "phpunit --testdox"
+  }
+}

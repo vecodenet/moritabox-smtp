@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit colors="true" cacheResultFile="tests/output/.phpunit.result.cache" bootstrap="tests/bootstrap.php" stopOnFailure="true">
+    <testsuites>
+        <testsuite name="MoritaBox SMTP Test Suite">
+            <directory>./tests/</directory>
+        </testsuite>
+    </testsuites>
+    <logging>
+        <testdoxHtml outputFile="tests/output/index.html"/>
+    </logging>
+    <coverage>
+        <include>
+            <directory suffix=".php">./src/</directory>
+        </include>
+        <report>
+            <html outputDirectory="tests/output/coverage" lowUpperBound="50" highLowerBound="90"/>
+        </report>
+    </coverage>
+</phpunit>
