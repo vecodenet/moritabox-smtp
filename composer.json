@@ -16,5 +16,8 @@
     "analyse": "phpstan analyse --configuration phpstan.neon --memory-limit 1G --level 7 src",
     "coverage": "phpunit --coverage-text",
     "test": "phpunit --testdox"
+  },
+  "require-dev": {
+    "phpmailer/phpmailer": "^6.8"
   }
 }

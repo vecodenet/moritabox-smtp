@@ -35,8 +35,9 @@ class SmtpServer extends EventEmitter {
 
     /**
      * Constructor
-     * @param bool    $local         Bind to URI
      * @param Closure $auth_callback Authentication callback
+     * @param int     $port          Server port
+     * @param bool    $local         Local flag
      */
     public function __construct(Closure $auth_callback, int $port = 8025, bool $local = true) {
         $this->port = $port;

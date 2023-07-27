@@ -9,7 +9,7 @@ use RuntimeException;
 
 use PHPUnit\Framework\TestCase;
 
-use MoritaBox\LineReader;
+use MoritaBox\Smtp\Utils\LineReader;
 
 class LineReaderTest extends TestCase {
 
