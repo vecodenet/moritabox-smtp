@@ -1,7 +1,21 @@
 {
+  "name": "vecode/moritabox-smtp",
+  "description": "MoritaBox SMTP Server",
+  "version": "1.0",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "biohzrdmx",
+      "email": "hi@biohzrdmx.me",
+      "homepage": "https://biohzrdmx.me"
+    }
+  ],
   "require": {
+    "php": ">=8.1",
     "react/socket": "^1.13"
   },
+  "require-dev": {},
   "autoload": {
     "psr-4": {
       "MoritaBox\\": "src/"
@@ -17,7 +31,5 @@
     "coverage": "phpunit --coverage-text",
     "test": "phpunit --testdox"
   },
-  "require-dev": {
-    "phpmailer/phpmailer": "^6.8"
-  }
+  "minimum-stability": "stable"
 }
