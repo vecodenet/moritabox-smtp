@@ -24,6 +24,11 @@ class SmtpServer extends EventEmitter {
     protected bool $local;
 
     /**
+     * Server domain
+     */
+    protected string $domain;
+
+    /**
      * Server port
      */
     protected int $port;
@@ -31,17 +36,19 @@ class SmtpServer extends EventEmitter {
     /**
      * Authentication callback
      */
-    protected Closure $auth_callback;
+    protected ?Closure $auth_callback;
 
     /**
      * Constructor
      * @param Closure $auth_callback Authentication callback
+     * @param string  $domain        Fully-qualified domain name
      * @param int     $port          Server port
      * @param bool    $local         Local flag
      */
-    public function __construct(Closure $auth_callback, int $port = 8025, bool $local = true) {
-        $this->port = $port;
+    public function __construct(?Closure $auth_callback = null, string $domain = 'localhost', int $port = 8025, bool $local = true) {
         $this->local = $local;
+        $this->port = $port;
+        $this->domain = $domain;
         $this->auth_callback = $auth_callback;
     }
 
@@ -60,6 +67,13 @@ class SmtpServer extends EventEmitter {
     }
 
     /**
+     * Get server domain
+     */
+    public function getDomain(): string {
+        return $this->domain;
+    }
+
+    /**
      * Check if server is local or not
      */
     public function isLocal(): bool {
@@ -68,7 +82,8 @@ class SmtpServer extends EventEmitter {
 
     /**
      * Set the authentication callback
-     * @param Closure $auth_callback Authentication callback
+     * @param  Closure $auth_callback Authentication callback
+     * @return $this
      */
     public function setAuthCallback(Closure $auth_callback) {
         $this->auth_callback = $auth_callback;
@@ -83,6 +98,7 @@ class SmtpServer extends EventEmitter {
         $uri = sprintf('%s:%d', $address, $this->port);
         $this->socket = new SocketServer($uri);
         $this->socket->on('connection', function (ConnectionInterface $connection) {
+            // @codeCoverageIgnoreStart
             $handler = new SmtpHandler($this, $connection);
             $handler->on('mail', function($mail) {
                 $this->emit('mail', [$mail]);
@@ -90,9 +106,12 @@ class SmtpServer extends EventEmitter {
             $handler->on('error', function(Exception $e) {
                 $this->emit('error', [$e]);
             });
+            // @codeCoverageIgnoreEnd
         });
         $this->socket->on('error', function(Exception $e) {
+            // @codeCoverageIgnoreStart
             $this->emit('error', [$e]);
+            // @codeCoverageIgnoreEnd
         });
         $this->emit('ready', [$this->port]);
     }
@@ -101,10 +120,8 @@ class SmtpServer extends EventEmitter {
      * Stop server
      */
     public function stop(): void {
-        if ($this->socket) {
-            $this->socket->close();
-            $this->emit('close', [$this->port]);
-        }
+        $this->socket->close();
+        $this->emit('close', [$this->port]);
     }
 
     /**

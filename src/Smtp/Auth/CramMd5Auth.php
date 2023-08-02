@@ -15,9 +15,10 @@ class CramMd5Auth extends AbstractAuth {
 
     /**
      * Constructor
+     * @param string $domain Fully-qualified domain name
      */
-    public function __construct() {
-        $this->challenge = $this->generateChallenge();
+    public function __construct(string $domain) {
+        $this->challenge = $this->generateChallenge($domain);
     }
 
     /**
@@ -32,26 +33,6 @@ class CramMd5Auth extends AbstractAuth {
      */
     public function getChallenge(): string {
         return $this->challenge;
-    }
-
-    /**
-     * Set user name
-     * @param  string $user User name
-     * @return $this
-     */
-    public function setUser(string $user) {
-        $this->user = @base64_decode($user);
-        return $this;
-    }
-
-    /**
-     * Set password
-     * @param  string $password Password
-     * @return $this
-     */
-    public function setPassword(string $password) {
-        $this->password = @base64_decode($password);
-        return $this;
     }
 
     /**
@@ -81,10 +62,10 @@ class CramMd5Auth extends AbstractAuth {
     /**
      * Generate challenge
      */
-    protected function generateChallenge(): string {
+    protected function generateChallenge(string $domain): string {
         $strong = true;
         $random = openssl_random_pseudo_bytes(32, $strong);
-        $challenge = '<'.bin2hex($random).'@moritabox.com>';
+        $challenge = '<'.bin2hex($random)."@{$domain}>'";
         return $challenge;
     }
 }

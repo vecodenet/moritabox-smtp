@@ -103,23 +103,56 @@ class SmtpHandler extends EventEmitter {
         $this->server = $server;
         $this->connection = $connection;
         $this->reader = new LineReader(function(string $line) {
+            // @codeCoverageIgnoreStart
             $this->handleMessage($line);
+            // @codeCoverageIgnoreEnd
         }, 1000, self::DELIMITER);
         $this->connection->on('data', function(string $data) {
+            // @codeCoverageIgnoreStart
             try {
                 $this->reader->write($data);
             } catch (RuntimeException $e) {
                 $this->reply(500, $e->getMessage());
             }
+            // @codeCoverageIgnoreEnd
         });
         $this->reply(220, $this->banner);
+    }
+
+    /**
+     * Get current auth provider
+     */
+    public function getAuth(): AuthInterface {
+        return $this->auth;
+    }
+
+    /**
+     * Get from address
+     */
+    public function getFrom(): string {
+        return $this->from;
+    }
+
+    /**
+     * Get recipient addresses
+     */
+    public function getRecipients(): array {
+        return $this->recipients;
+    }
+
+    /**
+     * Get message contents
+     */
+    public function getContents(): string {
+        return $this->contents;
     }
 
     /**
      * Handle client message
      * @param  string $message Raw message
      */
-    public function handleMessage(string $message): void {
+    public function handleMessage(string $message): int {
+        $ret = 500;
         $parser = new StringParser($message);
         $args = $parser->parse();
         $command = strtolower( array_shift($args) ?? '' );
@@ -128,105 +161,106 @@ class SmtpHandler extends EventEmitter {
                 $domain = $args[0] ?? '';
                 if ($domain) {
                     $this->has_ehlo = true;
-                    $this->reply(250, "Hello {$domain} @ {$this->connection->getRemoteAddress()}");
+                    $ret = $this->reply(250, "Hello {$domain} @ {$this->connection->getRemoteAddress()}");
                 } else {
-                    $this->reply(500, "Invalid helo argument");
+                    $ret = $this->reply(500, "Invalid helo argument");
                 }
             break;
             case 'ehlo':
                 $domain = $args[0] ?? '';
                 if ($domain) {
                     $this->has_ehlo = true;
-                    $this->reply(250, ["Hello {$domain} @ {$this->connection->getRemoteAddress()}", 'AUTH PLAIN LOGIN CRAM-MD5', 'HELP']);
+                    $ret = $this->reply(250, ["Hello {$domain} @ {$this->connection->getRemoteAddress()}", 'AUTH PLAIN LOGIN CRAM-MD5', 'HELP']);
                 } else {
-                    $this->reply(500, "Invalid ehlo argument");
+                    $ret = $this->reply(500, "Invalid ehlo argument");
                 }
             break;
             case 'help':
-                $this->reply(250, "HELO, EHLO, MAIL FROM, RCPT TO, DATA, NOOP, QUIT");
+                $ret = $this->reply(250, "HELO, EHLO, MAIL FROM, RCPT TO, DATA, NOOP, QUIT");
             break;
             case 'noop':
-                $this->reply(250, "OK");
+                $ret = $this->reply(250, "OK");
             break;
             // case 'starttls':
             //     if (! empty($args) ) {
-            //         $this->reply(501, "Syntax error in parameters or arguments");
+            //         $ret = $this->reply(501, "Syntax error in parameters or arguments");
             //     }
-            //     $this->reply(220, "Ready to start TLS");
+            //     $ret = $this->reply(220, "Ready to start TLS");
             // break;
             case 'auth':
                 if ( empty($args) ) {
-                    $this->reply(501, "Syntax error in parameters or arguments");
-                }
-                $this->has_auth = true;
-                $auth_type = strtolower( $args[0] );
-                switch ($auth_type) {
-                    case 'plain':
-                        $this->auth = new PlainAuth();
-                        $token = $args[1] ?? '';
-                        if (! $token ) {
-                            $this->reply(334);
-                        } else {
-                            $this->auth->decode($token);
-                            if ( $this->auth->validate($this->server) ) {
-                                $this->has_valid_auth = true;
-                                $this->reply(235, '2.7.0 Authentication successful');
+                    $ret = $this->reply(501, "Syntax error in parameters or arguments");
+                } else {
+                    $this->has_auth = true;
+                    $auth_type = strtolower( $args[0] ?? '' );
+                    switch ($auth_type) {
+                        case 'plain':
+                            $this->auth = new PlainAuth();
+                            $token = $args[1] ?? '';
+                            if (! $token ) {
+                                $ret = $this->reply(334);
                             } else {
-                                $this->reply(535, 'Authentication credentials invalid');
+                                $this->auth->decode($token);
+                                if ( $this->auth->validate($this->server) ) {
+                                    $this->has_valid_auth = true;
+                                    $ret = $this->reply(235, '2.7.0 Authentication successful');
+                                } else {
+                                    $ret = $this->reply(535, 'Authentication credentials invalid');
+                                }
                             }
-                        }
-                    break;
-                    case 'login':
-                        $this->auth = new LoginAuth();
-                        $this->reply(334, 'VXNlcm5hbWU6');
-                    break;
-                    case 'cram-md5':
-                        $this->auth = new CramMd5Auth();
-                        $this->reply(334, $this->auth->getChallenge());
-                    break;
-                    default:
-                        $this->reply(504, 'Unrecognized authentication type');
-                    break;
+                        break;
+                        case 'login':
+                            $this->auth = new LoginAuth();
+                            $ret = $this->reply(334, 'VXNlcm5hbWU6');
+                        break;
+                        case 'cram-md5':
+                            $this->auth = new CramMd5Auth( $this->server->getDomain() );
+                            $ret = $this->reply(334, $this->auth->getChallenge());
+                        break;
+                        default:
+                            $ret = $this->reply(504, 'Unrecognized authentication type');
+                        break;
+                    }
                 }
             break;
             case 'mail':
                 if ($this->has_valid_auth) {
-                    $from = $args[0];
+                    $from = $args[0] ?? '';
                     if (preg_match('/\<(?<email>.*)\>( .*)?/', $from, $matches) == 1) {
                         $this->from  = $matches['email'];
                         $this->has_mail = true;
-                        $this->reply(250, "MAIL OK");
+                        $ret = $this->reply(250, "MAIL OK");
                     } else {
-                        $this->reply(500, "Invalid mail argument");
+                        $ret = $this->reply(500, "Invalid mail argument");
                     }
                 } else {
-                    $this->reply(500, "Syntax error, command unrecognized");
+                    $ret = $this->reply(500, "Syntax error, command unrecognized");
                 }
             break;
             case 'rcpt':
                 if ($this->has_valid_auth) {
-                    $rcpt = $args[0];
+                    $rcpt = $args[0] ?? '';
                     if (preg_match('/^(?<name>.*?)\s*?\<(?<email>.*)\>\s*$/', $rcpt, $matches) == 1) {
                         $this->recipients[$matches['email']] = $matches['name'];
                         $this->has_rcpt = true;
-                        $this->reply(250, "Accepted");
+                        $ret = $this->reply(250, "Accepted");
                     } else {
-                        $this->reply(500, "Invalid RCPT TO argument.");
+                        $ret = $this->reply(500, "Invalid RCPT TO argument.");
                     }
                 } else {
-                    $this->reply(500, "Syntax error, command unrecognized");
+                    $ret = $this->reply(500, "Syntax error, command unrecognized");
                 }
             break;
             case 'data':
                 if ($this->has_valid_auth) {
                     $this->has_data = true;
-                    $this->reply(354, "Enter message, end with <CRLF>.<CRLF>");
+                    $ret = $this->reply(354, "Enter message, end with <CRLF>.<CRLF>");
                 } else {
-                    $this->reply(500, "Syntax error, command unrecognized");
+                    $ret = $this->reply(500, "Syntax error, command unrecognized");
                 }
             break;
             case 'quit':
-                $this->reply(221, "Goodbye.", true);
+                $ret = $this->reply(221, "Goodbye.", true);
             break;
             default:
                 if ($this->has_auth && !$this->has_data) {
@@ -234,68 +268,82 @@ class SmtpHandler extends EventEmitter {
                     switch ($auth_type) {
                         case 'plain':
                             if (! $message ) {
-                                $this->reply(500, "Invalid auth argument");
-                            }
-                            if ($this->auth instanceof PlainAuth) {
-                                $this->auth->decode($message);
-                                if ( $this->auth->validate($this->server) ) {
-                                    $this->has_valid_auth = true;
-                                    $this->reply(235, '2.7.0 Authentication successful');
-                                } else {
-                                    $this->reply(535, 'Authentication credentials invalid');
-                                }
+                                $ret = $this->reply(500, "Invalid auth argument");
                             } else {
-                                throw new RuntimeException( sprintf( "Unexpected Auth class '%s'", get_class($this->auth) ) );
+                                if ($this->auth instanceof PlainAuth) {
+                                    $this->auth->decode($message);
+                                    if ( $this->auth->validate($this->server) ) {
+                                        $this->has_valid_auth = true;
+                                        $ret = $this->reply(235, '2.7.0 Authentication successful');
+                                    } else {
+                                        $ret = $this->reply(535, 'Authentication credentials invalid');
+                                    }
+                                } else {
+                                    // @codeCoverageIgnoreStart
+                                    throw new RuntimeException( sprintf( "Unexpected Auth class '%s'", get_class($this->auth) ) );
+                                    // @codeCoverageIgnoreEnd
+                                }
                             }
                         break;
                         case 'login':
                             if (! $message ) {
-                                $this->reply(500, "Invalid auth argument");
-                            }
-                            if ($this->auth instanceof LoginAuth) {
-                                if (! $this->auth->getUser() ) {
-                                    $this->auth->setUser($message);
-                                    $this->reply(334, 'UGFzc3dvcmQ6');
-                                } else {
-                                    $this->auth->setPassword($message);
-                                    if ( $this->auth->validate($this->server) ) {
-                                        $this->has_valid_auth = true;
-                                        $this->reply(235, '2.7.0 Authentication successful');
-                                    } else {
-                                        $this->reply(535, 'Authentication credentials invalid');
-                                    }
-                                }
+                                $ret = $this->reply(500, "Invalid auth argument");
                             } else {
-                                throw new RuntimeException( sprintf( "Unexpected Auth class '%s'", get_class($this->auth) ) );
+                                if ($this->auth instanceof LoginAuth) {
+                                    if (! $this->auth->getUser() ) {
+                                        $this->auth->setUser($message);
+                                        $ret = $this->reply(334, 'UGFzc3dvcmQ6');
+                                    } else {
+                                        $this->auth->setPassword($message);
+                                        if ( $this->auth->validate($this->server) ) {
+                                            $this->has_valid_auth = true;
+                                            $ret = $this->reply(235, '2.7.0 Authentication successful');
+                                        } else {
+                                            $ret = $this->reply(535, 'Authentication credentials invalid');
+                                        }
+                                    }
+                                } else {
+                                    // @codeCoverageIgnoreStart
+                                    throw new RuntimeException( sprintf( "Unexpected Auth class '%s'", get_class($this->auth) ) );
+                                    // @codeCoverageIgnoreEnd
+                                }
                             }
                         break;
                         case 'cram-md5':
-                            if ($this->auth instanceof CramMd5Auth) {
-                                $this->auth->decode($message);
-                                if ( $this->auth->validate($this->server) ) {
-                                    $this->has_valid_auth = true;
-                                    $this->reply(235, '2.7.0 Authentication successful');
-                                } else {
-                                    $this->reply(535, 'Authentication credentials invalid');
-                                }
+                            if (! $message ) {
+                                $ret = $this->reply(500, "Invalid auth argument");
                             } else {
-                                throw new RuntimeException( sprintf( "Unexpected Auth class '%s'", get_class($this->auth) ) );
+                                if ($this->auth instanceof CramMd5Auth) {
+                                    $this->auth->decode($message);
+                                    if ( $this->auth->validate($this->server) ) {
+                                        $this->has_valid_auth = true;
+                                        $ret = $this->reply(235, '2.7.0 Authentication successful');
+                                    } else {
+                                        $ret = $this->reply(535, 'Authentication credentials invalid');
+                                    }
+                                } else {
+                                    // @codeCoverageIgnoreStart
+                                    throw new RuntimeException( sprintf( "Unexpected Auth class '%s'", get_class($this->auth) ) );
+                                    // @codeCoverageIgnoreEnd
+                                }
                             }
                         break;
                     }
                 } elseif ($this->has_data) {
                     if ($message == '.') {
                         $this->contents = substr($this->contents, 0, -strlen(static::DELIMITER));
-                        $this->reply(250, "OK");
                         # Emit mail event
                         $mail = new Mail($this->from, $this->recipients, $this->contents);
                         $this->emit('mail', [$mail]);
+                        $ret = $this->reply(250, "OK");
                     } else {
                         $this->contents .= $message . static::DELIMITER;
+                        $ret = 250;
                     }
                 }
             break;
         }
+        return $ret;
     }
 
     /**
@@ -304,7 +352,7 @@ class SmtpHandler extends EventEmitter {
      * @param  mixed $message Message
      * @param  bool  $close   Whether to close the connection or not
      */
-    protected function reply(int $code, mixed $message = '', bool $close = false): void {
+    protected function reply(int $code, mixed $message = '', bool $close = false): int {
         $out = '';
         if ( is_array($message) ) {
             $last = array_pop($message);
@@ -314,10 +362,12 @@ class SmtpHandler extends EventEmitter {
             $this->connection->write($out);
             $message = $last;
         }
+        $response = "{$code} {$message}" . self::DELIMITER;
         if ($close) {
-            $this->connection->end("{$code} {$message}" . self::DELIMITER);
+            $this->connection->end($response);
         } else {
-            $this->connection->write("{$code} {$message}" . self::DELIMITER);
+            $this->connection->write($response);
         }
+        return $code;
     }
 }
