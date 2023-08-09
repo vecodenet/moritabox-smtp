@@ -110,7 +110,20 @@ class SmtpHandler extends EventEmitter {
         $this->connection->on('data', function(string $data) {
             // @codeCoverageIgnoreStart
             try {
-                $this->reader->write($data);
+                # Get data length
+                $length = strlen($data);
+                if ( $length <= 500 ) {
+                    # Less or equal 500 chars, write directly to the reader
+                    $this->reader->write($data);
+                } else {
+                    # More than 500 chars, chunk it to avoid filling up the buffer
+                    $offset = 0;
+                    while ( $offset < $length ) {
+                        $chunk = substr($data, $offset, 500);
+                        $this->reader->write($chunk);
+                        $offset += strlen($chunk);
+                    }
+                }
             } catch (RuntimeException $e) {
                 $this->reply(500, $e->getMessage());
             }
