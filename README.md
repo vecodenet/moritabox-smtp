@@ -26,8 +26,9 @@ Create an `SmtpServer` instance by passing an authentication callback; then subs
 ```php
 use MoritaBox\Smtp\Mail;
 use MoritaBox\Smtp\SmtpServer;
+use MoritaBox\Smtp\SmtpHandler;
 
-$server = new SmtpServer(function(string $user) {
+$server = new SmtpServer(function(string $user, SmtpHandler $handler) {
     return $user == 'user@example.com' ? 'secret' : false;
 });
 
@@ -35,7 +36,7 @@ $server->on('ready', function(int $port) use ($output) {
     echo "Listening on port {$port}";
 });
 
-$server->on('mail', function(Mail $mail) use ($output) {
+$server->on('mail', function(Mail $mail, SmtpHandler $handler) use ($output) {
     $filename = 'mail-'.microtime(true).'.eml';
     echo "Mail received, saving as '{$filename}'";
     file_put_contents(dirname(__FILE__) . DIRECTORY_SEPARATOR . $filename, $mail->getContents());

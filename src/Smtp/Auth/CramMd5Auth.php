@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace MoritaBox\Smtp\Auth;
 
+use MoritaBox\Smtp\SmtpHandler;
 use MoritaBox\Smtp\SmtpServer;
 
 class CramMd5Auth extends AbstractAuth {
@@ -48,8 +49,8 @@ class CramMd5Auth extends AbstractAuth {
     /**
      * @inheritdoc
      */
-    public function validate(SmtpServer $server): bool {
-        $password = $server->getUserPassword($this->user);
+    public function validate(SmtpServer $server, ?SmtpHandler $handler): bool {
+        $password = $server->getUserPassword($this->user, $handler);
         if ($password !== false) {
             $key = base64_decode($this->challenge);
             $check = hash_hmac('md5', $key, $password);

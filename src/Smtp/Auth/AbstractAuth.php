@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace MoritaBox\Smtp\Auth;
 
+use MoritaBox\Smtp\SmtpHandler;
 use MoritaBox\Smtp\SmtpServer;
 
 abstract class AbstractAuth implements AuthInterface {
@@ -35,8 +36,8 @@ abstract class AbstractAuth implements AuthInterface {
     /**
      * @inheritdoc
      */
-    public function validate(SmtpServer $server): bool {
-        $password = $server->getUserPassword($this->user);
+    public function validate(SmtpServer $server, ?SmtpHandler $handler): bool {
+        $password = $server->getUserPassword($this->user, $handler);
         if ($password !== false) {
             return $this->password == $password;
         } else {

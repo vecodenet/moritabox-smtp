@@ -33,11 +33,11 @@ class AuthTest extends TestCase {
         $auth->setPassword(base64_encode('password'));
         $this->assertEquals('user', $auth->getUser());
         $this->assertEquals('password', $auth->getPassword());
-        $this->assertTrue($auth->validate($server));
+        $this->assertTrue($auth->validate($server, null));
         # Invalid credentials
         $auth->setUser(base64_encode('foo'));
         $auth->setPassword(base64_encode('bar'));
-        $this->assertFalse($auth->validate($server));
+        $this->assertFalse($auth->validate($server, null));
     }
 
     public function testCramMd5Auth() {
@@ -56,7 +56,7 @@ class AuthTest extends TestCase {
         $auth->decode($token);
         $this->assertEquals('user', $auth->getUser());
         $this->assertEquals($hash, $auth->getPassword());
-        $this->assertTrue($auth->validate($server));
+        $this->assertTrue($auth->validate($server, null));
         # Invalid credentials
         $challenge = $auth->getChallenge();
         $this->assertNotEmpty($challenge);
@@ -64,6 +64,6 @@ class AuthTest extends TestCase {
         $hash = hash_hmac('md5', $data, 'bar');
         $token = base64_encode('foo ' . $hash);
         $auth->decode($token);
-        $this->assertFalse($auth->validate($server));
+        $this->assertFalse($auth->validate($server, null));
     }
 }

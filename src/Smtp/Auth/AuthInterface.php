@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace MoritaBox\Smtp\Auth;
 
+use MoritaBox\Smtp\SmtpHandler;
 use MoritaBox\Smtp\SmtpServer;
 
 interface AuthInterface {
@@ -25,6 +26,8 @@ interface AuthInterface {
 
     /**
      * Validate credentials
+     * @param SmtpServer   $server  Server instance
+     * @param ?SmtpHandler $handler Handler instance
      */
-    public function validate(SmtpServer $server): bool;
+    public function validate(SmtpServer $server, ?SmtpHandler $handler): bool;
 }

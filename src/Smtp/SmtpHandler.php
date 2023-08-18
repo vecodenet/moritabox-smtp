@@ -26,6 +26,11 @@ class SmtpHandler extends EventEmitter {
     const DELIMITER = "\r\n";
 
     /**
+     * Unique ID
+     */
+    protected string $uuid;
+
+    /**
      * Welcome banner
      */
     protected string $banner = 'Welcome to MoritaBox SMTP Server';
@@ -100,6 +105,7 @@ class SmtpHandler extends EventEmitter {
      * @param ConnectionInterface $connection ConnectionInterface implementation
      */
     public function __construct(SmtpServer $server, ConnectionInterface $connection) {
+        $this->uuid = $this->generateUniqueId();
         $this->server = $server;
         $this->connection = $connection;
         $this->reader = new LineReader(function(string $line) {
@@ -133,6 +139,13 @@ class SmtpHandler extends EventEmitter {
     }
 
     /**
+     * Get unique ID
+     */
+    public function getUniqueId(): string {
+        return $this->uuid;
+    }
+
+    /**
      * Get current auth provider
      */
     public function getAuth(): AuthInterface {
@@ -158,6 +171,14 @@ class SmtpHandler extends EventEmitter {
      */
     public function getContents(): string {
         return $this->contents;
+    }
+
+    /**
+     * Get the connection
+     * @return ConnectionInterface
+     */
+    public function getConnection(): ConnectionInterface {
+        return $this->connection;
     }
 
     /**
@@ -214,7 +235,7 @@ class SmtpHandler extends EventEmitter {
                                 $ret = $this->reply(334);
                             } else {
                                 $this->auth->decode($token);
-                                if ( $this->auth->validate($this->server) ) {
+                                if ( $this->auth->validate($this->server, $this) ) {
                                     $this->has_valid_auth = true;
                                     $ret = $this->reply(235, '2.7.0 Authentication successful');
                                 } else {
@@ -285,7 +306,7 @@ class SmtpHandler extends EventEmitter {
                             } else {
                                 if ($this->auth instanceof PlainAuth) {
                                     $this->auth->decode($message);
-                                    if ( $this->auth->validate($this->server) ) {
+                                    if ( $this->auth->validate($this->server, $this) ) {
                                         $this->has_valid_auth = true;
                                         $ret = $this->reply(235, '2.7.0 Authentication successful');
                                     } else {
@@ -308,7 +329,7 @@ class SmtpHandler extends EventEmitter {
                                         $ret = $this->reply(334, 'UGFzc3dvcmQ6');
                                     } else {
                                         $this->auth->setPassword($message);
-                                        if ( $this->auth->validate($this->server) ) {
+                                        if ( $this->auth->validate($this->server, $this) ) {
                                             $this->has_valid_auth = true;
                                             $ret = $this->reply(235, '2.7.0 Authentication successful');
                                         } else {
@@ -328,7 +349,7 @@ class SmtpHandler extends EventEmitter {
                             } else {
                                 if ($this->auth instanceof CramMd5Auth) {
                                     $this->auth->decode($message);
-                                    if ( $this->auth->validate($this->server) ) {
+                                    if ( $this->auth->validate($this->server, $this) ) {
                                         $this->has_valid_auth = true;
                                         $ret = $this->reply(235, '2.7.0 Authentication successful');
                                     } else {
@@ -382,5 +403,19 @@ class SmtpHandler extends EventEmitter {
             $this->connection->write($response);
         }
         return $code;
+    }
+
+    /**
+     * Generate a (reasonably) unique ID
+     */
+    protected function generateUniqueId(): string {
+        $hex = bin2hex($bytes = random_bytes(18));
+        $hex[8] = '-';
+        $hex[13] = '-';
+        $hex[14] = '4';
+        $hex[18] = '-';
+        $hex[19] = '89ab'[ord($bytes[9]) % 4];
+        $hex[23] = '-';
+        return $hex;
     }
 }

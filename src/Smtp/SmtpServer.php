@@ -100,8 +100,8 @@ class SmtpServer extends EventEmitter {
         $this->socket->on('connection', function (ConnectionInterface $connection) {
             // @codeCoverageIgnoreStart
             $handler = new SmtpHandler($this, $connection);
-            $handler->on('mail', function($mail) {
-                $this->emit('mail', [$mail]);
+            $handler->on('mail', function($mail) use ($handler) {
+                $this->emit('mail', [$mail, $handler]);
             });
             $handler->on('error', function(Exception $e) {
                 $this->emit('error', [$e]);
@@ -126,9 +126,10 @@ class SmtpServer extends EventEmitter {
 
     /**
      * Get the password for the given user
-     * @param  string $user User name
+     * @param  string       $user    User name
+     * @param  ?SmtpHandler $handler Handler instance
      */
-    public function getUserPassword(string $user): mixed {
-        return $this->auth_callback ? ($this->auth_callback)($user) : false;
+    public function getUserPassword(string $user, ?SmtpHandler $handler): mixed {
+        return $this->auth_callback ? ($this->auth_callback)($user, $handler) : false;
     }
 }

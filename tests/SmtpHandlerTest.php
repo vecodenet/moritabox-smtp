@@ -24,6 +24,9 @@ class SmtpHandlerTest extends TestCase {
         });
         $handler = new SmtpHandler($server, $connection);
 
+        $this->assertInstanceOf(ConnectionInterface::class, $handler->getConnection());
+        $this->assertMatchesRegularExpression('/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i', $handler->getUniqueId());
+
         # HELO
         $this->assertEquals(500, $handler->handleMessage('HELO'));
         $this->assertEquals(250, $handler->handleMessage('HELO localhost'));
