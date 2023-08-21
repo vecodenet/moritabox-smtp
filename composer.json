@@ -1,7 +1,7 @@
 {
   "name": "vecode/moritabox-smtp",
   "description": "MoritaBox SMTP Server",
-  "version": "1.2",
+  "version": "1.3",
   "type": "library",
   "license": "MIT",
   "authors": [

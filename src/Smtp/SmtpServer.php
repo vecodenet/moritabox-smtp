@@ -9,6 +9,8 @@ use Exception;
 
 use Evenement\EventEmitter;
 use React\Socket\ConnectionInterface;
+use React\Socket\SecureServer;
+use React\Socket\ServerInterface;
 use React\Socket\SocketServer;
 
 class SmtpServer extends EventEmitter {
@@ -16,7 +18,7 @@ class SmtpServer extends EventEmitter {
     /**
      * Socket server
      */
-    protected SocketServer $socket;
+    protected ServerInterface $socket;
 
     /**
      * Local flag
@@ -93,10 +95,15 @@ class SmtpServer extends EventEmitter {
     /**
      * Start server
      */
-    public function start(): void {
+    public function start(bool $secure = false, array $context = []): void {
         $address = $this->local ? '127.0.0.1' : '0.0.0.0';
         $uri = sprintf('%s:%d', $address, $this->port);
         $this->socket = new SocketServer($uri);
+        if ($secure) {
+            // @codeCoverageIgnoreStart
+            $this->socket = new SecureServer($this->socket, null, $context);
+            // @codeCoverageIgnoreEnd
+        }
         $this->socket->on('connection', function (ConnectionInterface $connection) {
             // @codeCoverageIgnoreStart
             $handler = new SmtpHandler($this, $connection);

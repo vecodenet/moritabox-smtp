@@ -56,6 +56,19 @@ Finally, the `mail` event is fired when a complete mail message has been receive
 
 Note that you can change the listening port (defaults to `8025`) from the `SmtpServer` constructor and also you can specify the fully-qualified domain for the `CRAM-MD5` challenge and also set a flag so that the port is bound only locally (that is, allow connections from `127.0.0.1` only).
 
+SSL/TLS is supported only in **implicit mode**, that is, the connection starts out with a secure handshake. For it to work you will need to enable it and pass the certificate and private key location (if required):
+
+```php
+$server->start(true, [
+    'local_cert' => '/home/contosso/certs/contosso-certificate.pem',
+    'local_pk' => '/home/contosso/certs/contosso-key.pem',
+]);
+```
+
+As you can see, the second parameter is an SSL context options listing [as defined here](https://www.php.net/manual/en/context.ssl.php).
+
+STARTTLS is not supported due to a ReactPHP limitation.
+
 ### Authentication
 
 Each of the supported authentication methods require you to provide an authentication callback that will receive the user name and must return the password for that user or `false` for non-existing users. As you can see, the returned password must be in plain-text, a limitation on the SMTP protocol, so it is advised to encrypt the passwords if you store them (in a database for example).
@@ -97,6 +110,12 @@ if(!$mail->send()) {
 } else {
     echo 'Message has been sent';
 }
+```
+
+If you have enabled implicit SSL you must also set the `SMTPSecure` option as follows:
+
+```php
+$mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
 ```
 
 ## License
