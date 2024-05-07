@@ -65,6 +65,27 @@ class SmtpServer extends EventEmitter {
     }
 
     /**
+     * Check if there's an authentication callback
+     */
+    public function hasAuthCallback(): bool {
+        return $this->auth_callback != null;
+    }
+
+    /**
+     * Check if there's a mail callback
+     */
+    public function hasMailCallback(): bool {
+        return $this->mail_callback != null;
+    }
+
+    /**
+     * Check if there's a recipient callback
+     */
+    public function hasRecipientCallback(): bool {
+        return $this->rcpt_callback != null;
+    }
+
+    /**
      * Get the authentication callback
      */
     public function getAuthCallback(): ?Closure {

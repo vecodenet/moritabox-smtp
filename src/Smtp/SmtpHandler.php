@@ -96,6 +96,11 @@ class SmtpHandler extends EventEmitter {
     protected bool $has_data = false;
 
     /**
+     * Whether authentication is required or not
+     */
+    protected bool $requires_auth = false;
+
+    /**
      * Whether a valid authentication flow has occurred or not
      */
     protected bool $has_valid_auth = false;
@@ -107,6 +112,7 @@ class SmtpHandler extends EventEmitter {
     public function __construct(SmtpServer $server, ConnectionInterface $connection) {
         $this->uuid = $this->generateUniqueId();
         $this->server = $server;
+        $this->requires_auth = $server->hasAuthCallback();
         $this->connection = $connection;
         $this->reader = new LineReader(function(string $line) {
             // @codeCoverageIgnoreStart
@@ -204,7 +210,13 @@ class SmtpHandler extends EventEmitter {
                 $domain = $args[0] ?? '';
                 if ($domain) {
                     $this->has_ehlo = true;
-                    $ret = $this->reply(250, ["Hello {$domain} @ {$this->connection->getRemoteAddress()}", 'AUTH PLAIN LOGIN CRAM-MD5', 'HELP']);
+                    $reply = [];
+                    $reply[] = "Hello {$domain} @ {$this->connection->getRemoteAddress()}";
+                    if ( $this->requires_auth ) {
+                        $reply[] = 'AUTH PLAIN LOGIN CRAM-MD5';
+                    }
+                    $reply[] = 'HELP';
+                    $ret = $this->reply(250, $reply);
                 } else {
                     $ret = $this->reply(500, "Invalid ehlo argument");
                 }
@@ -270,13 +282,12 @@ class SmtpHandler extends EventEmitter {
                 }
             break;
             case 'mail':
-                if ($this->has_valid_auth) {
+                if (!$this->requires_auth || $this->has_valid_auth) {
                     $from = $args[0] ?? '';
                     if (preg_match('/\<(?<email>.*)\>( .*)?/', $from, $matches) == 1) {
-                        $callback = $this->server->getMailCallback();
                         $allowed = true;
-                        if ($callback) {
-                            $allowed = $callback( $matches['email'] );
+                        if ( $this->server->hasMailCallback() ) {
+                            $allowed = $this->server->getMailCallback()($matches['email'], $this);
                         }
                         if (! $allowed ) {
                             $ret = $this->reply(550, "No such user here {$matches['email']}");
@@ -293,13 +304,12 @@ class SmtpHandler extends EventEmitter {
                 }
             break;
             case 'rcpt':
-                if ($this->has_valid_auth) {
+                if (!$this->requires_auth || $this->has_valid_auth) {
                     $rcpt = $args[0] ?? '';
                     if (preg_match('/^(?<name>.*?)\s*?\<(?<email>.*)\>\s*$/', $rcpt, $matches) == 1) {
-                        $callback = $this->server->getRecipientCallback();
                         $allowed = true;
-                        if ($callback) {
-                            $allowed = $callback( $matches['email'] );
+                        if ( $this->server->hasRecipientCallback() ) {
+                            $allowed = $this->server->getRecipientCallback()($matches['email'], $this);
                         }
                         if (! $allowed ) {
                             $ret = $this->reply(550, "No such user here {$matches['email']}");
@@ -316,7 +326,7 @@ class SmtpHandler extends EventEmitter {
                 }
             break;
             case 'data':
-                if ($this->has_valid_auth) {
+                if (!$this->requires_auth || $this->has_valid_auth) {
                     $this->has_data = true;
                     $ret = $this->reply(354, "Enter message, end with <CRLF>.<CRLF>");
                 } else {
@@ -327,7 +337,7 @@ class SmtpHandler extends EventEmitter {
                 $ret = $this->reply(221, "Goodbye.", true);
             break;
             default:
-                if ($this->has_auth && !$this->has_data) {
+                if (($this->requires_auth && $this->has_auth) && !$this->has_data) {
                     $auth_type = strtolower( $this->auth->getType() );
                     switch ($auth_type) {
                         case 'plain':
