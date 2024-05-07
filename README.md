@@ -73,6 +73,19 @@ STARTTLS is not supported due to a ReactPHP limitation.
 
 Each of the supported authentication methods require you to provide an authentication callback that will receive the user name and must return the password for that user or `false` for non-existing users. As you can see, the returned password must be in plain-text, a limitation on the SMTP protocol, so it is advised to encrypt the passwords if you store them (in a database for example).
 
+### Validation
+
+You can also validate the sender/recipient (depending on the server's purpose) by means of the `setMailCallback` and `setRecipientCallback` methods, both of them take a `Closure` as argument that in turn receives an `$email` parameter; just return `true` to allow the address or `false` to deny it.
+
+```php
+$server->setRecipientCallback(function(string $email) {
+    # Check for specific domain
+    return str_ends_with($email, '@example.org');
+});
+```
+
+This example uses a pretty simple approach, but you may use a regular expression or any other advanced mechanism to validate it should you like to.
+
 ### Using PHPMailer to send mail
 
 The most-common use case is testing email sent from other PHP projects, commonly implemented with PHPMailer or similar libraries.
