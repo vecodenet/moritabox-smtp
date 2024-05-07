@@ -25,7 +25,15 @@ class SmtpServerTest extends TestCase {
         $server->setAuthCallback(function() {
             return false;
         });
+        $server->setMailCallback(function() {
+            return false;
+        });
+        $server->setRecipientCallback(function() {
+            return false;
+        });
         $this->assertInstanceOf(Closure::class, $server->getAuthCallback());
+        $this->assertInstanceOf(Closure::class, $server->getMailCallback());
+        $this->assertInstanceOf(Closure::class, $server->getRecipientCallback());
         #
         try {
             $server->start();

@@ -41,6 +41,16 @@ class SmtpServer extends EventEmitter {
     protected ?Closure $auth_callback;
 
     /**
+     * Mail validation callback
+     */
+    protected ?Closure $mail_callback = null;
+
+    /**
+     * Recipient validation callback
+     */
+    protected ?Closure $rcpt_callback = null;
+
+    /**
      * Constructor
      * @param Closure $auth_callback Authentication callback
      * @param string  $domain        Fully-qualified domain name
@@ -57,8 +67,22 @@ class SmtpServer extends EventEmitter {
     /**
      * Get the authentication callback
      */
-    public function getAuthCallback(): Closure {
+    public function getAuthCallback(): ?Closure {
         return $this->auth_callback;
+    }
+
+    /**
+     * Get the mail callback
+     */
+    public function getMailCallback(): ?Closure {
+        return $this->mail_callback;
+    }
+
+    /**
+     * Get the recipient callback
+     */
+    public function getRecipientCallback(): ?Closure {
+        return $this->rcpt_callback;
     }
 
     /**
@@ -84,11 +108,31 @@ class SmtpServer extends EventEmitter {
 
     /**
      * Set the authentication callback
-     * @param  Closure $auth_callback Authentication callback
+     * @param  Closure|null $auth_callback Authentication callback
      * @return $this
      */
-    public function setAuthCallback(Closure $auth_callback) {
+    public function setAuthCallback(?Closure $auth_callback) {
         $this->auth_callback = $auth_callback;
+        return $this;
+    }
+
+    /**
+     * Set the mail callback
+     * @param  Closure|null $mail_callback Mail callback
+     * @return $this
+     */
+    public function setMailCallback(?Closure $mail_callback) {
+        $this->mail_callback = $mail_callback;
+        return $this;
+    }
+
+    /**
+     * Set the recipient callback
+     * @param  Closure|null $rcpt_callback Recipient callback
+     * @return $this
+     */
+    public function setRecipientCallback(?Closure $rcpt_callback) {
+        $this->rcpt_callback = $rcpt_callback;
         return $this;
     }
 

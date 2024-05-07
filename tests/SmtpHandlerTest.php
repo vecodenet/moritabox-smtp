@@ -98,13 +98,23 @@ class SmtpHandlerTest extends TestCase {
         }
 
         # MAIL
+        $server->setMailCallback(function(string $email) {
+            # Check for specific email
+            return $email == 'test@example.org';
+        });
         $this->assertEquals(500, $handler->handleMessage('MAIL'));
         $this->assertEquals(250, $handler->handleMessage('MAIL <test@example.org>'));
+        $this->assertEquals(550, $handler->handleMessage('MAIL <test@example.com>'));
 
         # RCPT
+        $server->setRecipientCallback(function(string $email) {
+            # Check for specific domain
+            return str_ends_with($email, '@example.org');
+        });
         $this->assertEquals(500, $handler->handleMessage('RCPT'));
         $this->assertEquals(250, $handler->handleMessage('RCPT <foo@example.org>'));
         $this->assertEquals(250, $handler->handleMessage('RCPT <bar@example.org>'));
+        $this->assertEquals(550, $handler->handleMessage('RCPT <baz@example.com>'));
 
         # DATA
         $this->assertEquals(354, $handler->handleMessage('DATA'));

@@ -234,12 +234,18 @@ class SmtpHandler extends EventEmitter {
                             if (! $token ) {
                                 $ret = $this->reply(334);
                             } else {
-                                $this->auth->decode($token);
-                                if ( $this->auth->validate($this->server, $this) ) {
-                                    $this->has_valid_auth = true;
-                                    $ret = $this->reply(235, '2.7.0 Authentication successful');
+                                if ( $this->auth instanceof PlainAuth ) {
+                                    $this->auth->decode($token);
+                                    if ( $this->auth->validate($this->server, $this) ) {
+                                        $this->has_valid_auth = true;
+                                        $ret = $this->reply(235, '2.7.0 Authentication successful');
+                                    } else {
+                                        $ret = $this->reply(535, 'Authentication credentials invalid');
+                                    }
                                 } else {
-                                    $ret = $this->reply(535, 'Authentication credentials invalid');
+                                    // @codeCoverageIgnoreStart
+                                    throw new RuntimeException( sprintf( "Unexpected Auth class '%s'", get_class($this->auth) ) );
+                                    // @codeCoverageIgnoreEnd
                                 }
                             }
                         break;
@@ -249,7 +255,13 @@ class SmtpHandler extends EventEmitter {
                         break;
                         case 'cram-md5':
                             $this->auth = new CramMd5Auth( $this->server->getDomain() );
-                            $ret = $this->reply(334, $this->auth->getChallenge());
+                            if ( $this->auth instanceof CramMd5Auth ) {
+                                $ret = $this->reply(334, $this->auth->getChallenge());
+                            } else {
+                                // @codeCoverageIgnoreStart
+                                throw new RuntimeException( sprintf( "Unexpected Auth class '%s'", get_class($this->auth) ) );
+                                // @codeCoverageIgnoreEnd
+                            }
                         break;
                         default:
                             $ret = $this->reply(504, 'Unrecognized authentication type');
@@ -261,9 +273,18 @@ class SmtpHandler extends EventEmitter {
                 if ($this->has_valid_auth) {
                     $from = $args[0] ?? '';
                     if (preg_match('/\<(?<email>.*)\>( .*)?/', $from, $matches) == 1) {
-                        $this->from  = $matches['email'];
-                        $this->has_mail = true;
-                        $ret = $this->reply(250, "MAIL OK");
+                        $callback = $this->server->getMailCallback();
+                        $allowed = true;
+                        if ($callback) {
+                            $allowed = $callback( $matches['email'] );
+                        }
+                        if (! $allowed ) {
+                            $ret = $this->reply(550, "No such user here {$matches['email']}");
+                        } else {
+                            $this->from  = $matches['email'];
+                            $this->has_mail = true;
+                            $ret = $this->reply(250, "MAIL OK");
+                        }
                     } else {
                         $ret = $this->reply(500, "Invalid mail argument");
                     }
@@ -275,9 +296,18 @@ class SmtpHandler extends EventEmitter {
                 if ($this->has_valid_auth) {
                     $rcpt = $args[0] ?? '';
                     if (preg_match('/^(?<name>.*?)\s*?\<(?<email>.*)\>\s*$/', $rcpt, $matches) == 1) {
-                        $this->recipients[$matches['email']] = $matches['name'];
-                        $this->has_rcpt = true;
-                        $ret = $this->reply(250, "Accepted");
+                        $callback = $this->server->getRecipientCallback();
+                        $allowed = true;
+                        if ($callback) {
+                            $allowed = $callback( $matches['email'] );
+                        }
+                        if (! $allowed ) {
+                            $ret = $this->reply(550, "No such user here {$matches['email']}");
+                        } else {
+                            $this->recipients[$matches['email']] = $matches['name'];
+                            $this->has_rcpt = true;
+                            $ret = $this->reply(250, "Accepted");
+                        }
                     } else {
                         $ret = $this->reply(500, "Invalid RCPT TO argument.");
                     }
@@ -310,7 +340,9 @@ class SmtpHandler extends EventEmitter {
                                         $this->has_valid_auth = true;
                                         $ret = $this->reply(235, '2.7.0 Authentication successful');
                                     } else {
+                                        // @codeCoverageIgnoreStart
                                         $ret = $this->reply(535, 'Authentication credentials invalid');
+                                        // @codeCoverageIgnoreEnd
                                     }
                                 } else {
                                     // @codeCoverageIgnoreStart
@@ -333,7 +365,9 @@ class SmtpHandler extends EventEmitter {
                                             $this->has_valid_auth = true;
                                             $ret = $this->reply(235, '2.7.0 Authentication successful');
                                         } else {
+                                            // @codeCoverageIgnoreStart
                                             $ret = $this->reply(535, 'Authentication credentials invalid');
+                                            // @codeCoverageIgnoreEnd
                                         }
                                     }
                                 } else {
@@ -353,7 +387,9 @@ class SmtpHandler extends EventEmitter {
                                         $this->has_valid_auth = true;
                                         $ret = $this->reply(235, '2.7.0 Authentication successful');
                                     } else {
+                                        // @codeCoverageIgnoreStart
                                         $ret = $this->reply(535, 'Authentication credentials invalid');
+                                        // @codeCoverageIgnoreEnd
                                     }
                                 } else {
                                     // @codeCoverageIgnoreStart
